@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build outputs
+dist/
+.next/
+out/
+build/
+.turbo/
+*.tsbuildinfo
+
+# prisma generated client (custom output)
+packages/db/src/generated/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# os / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
