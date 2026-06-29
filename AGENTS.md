@@ -1,0 +1,46 @@
+# AGENTS.md
+
+See `README.md` for product/architecture details and `CLAUDE.md` for repo
+conventions. Standard scripts live in the root `package.json` (`pnpm dev`,
+`pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm db:*`).
+
+## Cursor Cloud specific instructions
+
+This is a pnpm + Turborepo monorepo: `apps/web` (Next.js), `apps/api`
+(Fastify + tRPC), and `packages/*` (`types`, `db`, `ui`, `config`). Internal
+packages export TypeScript source, so there is no separate build step during
+development.
+
+### Services & how to run them
+
+- **PostgreSQL 16** is installed locally (Docker is not available in this VM,
+  so `docker compose up` does not work here). It is **not** auto-started on a
+  fresh VM — start it before doing anything that touches the database:
+  `sudo pg_ctlcluster 16 main start` (check with `sudo pg_lsclusters`).
+- The `taskflow` Postgres role (password `taskflow`) and the `taskflow` /
+  `taskflow_test` databases already exist in the snapshot, matching the
+  defaults in `.env.example`.
+- **`.env`** is required (gitignored). If missing, `cp .env.example .env`; the
+  defaults work as-is against the local Postgres.
+- Run both apps with `pnpm dev` (API on `:4000`, web on `:3000`). Seeded
+  logins: `ada@taskflow.dev` / `password123` and `grace@taskflow.dev` /
+  `password123`.
+
+### Database
+
+- The Prisma client is generated into `node_modules` (gitignored) and is
+  refreshed by the update script (`pnpm db:generate`). After changing
+  `packages/db/prisma/schema.prisma`, re-run `pnpm db:generate`.
+- Apply schema and seed data with `pnpm db:migrate:deploy` then `pnpm db:seed`
+  (use `db:migrate:deploy`, not `db:migrate`, in non-interactive sessions —
+  `prisma migrate dev` prompts). `pnpm db:reset` drops, re-migrates and re-seeds.
+
+### Tests
+
+- `pnpm test` (Vitest unit + integration) runs against the `taskflow_test`
+  database and applies migrations to it automatically via the Vitest
+  `globalSetup`; Postgres just needs to be running.
+- `pnpm test:e2e` (Playwright) reuses already-running dev servers if present,
+  otherwise boots them itself. The Chromium browser and its system libraries
+  are installed in the snapshot; if Playwright reports a missing browser, run
+  `pnpm --filter @taskflow/web exec playwright install chromium`.
