@@ -17,6 +17,8 @@ export function TaskCard({ task, onOpen }: { task: Task; onOpen: (taskId: string
   return (
     <div
       ref={setNodeRef}
+      data-testid="task-card"
+      data-task-id={task.id}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
         'group cursor-grab rounded-md border border-border bg-bg p-3 shadow-card active:cursor-grabbing',

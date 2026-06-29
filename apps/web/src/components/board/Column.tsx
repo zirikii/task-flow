@@ -52,6 +52,8 @@ export function Column({
 
       <div
         ref={setNodeRef}
+        data-testid="column"
+        data-status={status}
         className={`flex min-h-[120px] flex-1 flex-col gap-2 rounded-lg border border-dashed p-2 transition-colors ${
           isOver ? 'border-accent bg-accent-subtle/40' : 'border-border bg-card/50'
         }`}
