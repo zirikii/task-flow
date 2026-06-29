@@ -1,3 +1,4 @@
+import '@fastify/cookie'; // load cookie type augmentation (req.cookies / reply.setCookie)
 import type { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
 import { db, type Session, type User } from '@taskflow/db';
 import { boardEvents, type BoardEventBus } from './events';
