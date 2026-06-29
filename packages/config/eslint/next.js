@@ -15,7 +15,16 @@ const compat = new FlatCompat({ baseDirectory: import.meta.dirname });
  */
 export const nextConfig = [
   {
-    ignores: ['dist/**', '.next/**', '.turbo/**', 'coverage/**', 'node_modules/**', 'playwright-report/**', 'test-results/**'],
+    ignores: [
+      'dist/**',
+      '.next/**',
+      '.turbo/**',
+      'coverage/**',
+      'node_modules/**',
+      'playwright-report/**',
+      'test-results/**',
+      'next-env.d.ts',
+    ],
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {

@@ -29,6 +29,14 @@
     "typescript": "5.9.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "sharp", "unrs-resolver", "@node-rs/argon2"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver",
+      "@node-rs/argon2",
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma"
+    ]
   }
 }
