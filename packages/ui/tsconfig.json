@@ -1,0 +1,9 @@
+{
+  "extends": "@taskflow/config/tsconfig/react-library.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "types": [],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

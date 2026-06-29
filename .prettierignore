@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.turbo
+coverage
+playwright-report
+test-results
+packages/db/src/generated
+pnpm-lock.yaml

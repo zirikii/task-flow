@@ -1,0 +1,41 @@
+{
+  "name": "@taskflow/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "dotenv -e ../../.env -- prisma migrate dev",
+    "db:migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
+    "db:seed": "dotenv -e ../../.env -- prisma db seed",
+    "db:studio": "dotenv -e ../../.env -- prisma studio",
+    "db:reset": "dotenv -e ../../.env -- prisma migrate reset --force",
+    "build": "prisma generate && tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3"
+  },
+  "devDependencies": {
+    "@node-rs/argon2": "2.0.2",
+    "@taskflow/config": "workspace:*",
+    "@types/node": "^22.12.0",
+    "dotenv-cli": "11.0.0",
+    "eslint": "9.39.4",
+    "prisma": "6.19.3",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3"
+  }
+}

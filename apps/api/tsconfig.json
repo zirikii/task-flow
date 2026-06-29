@@ -1,0 +1,9 @@
+{
+  "extends": "@taskflow/config/tsconfig/base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "*.config.ts"]
+}
