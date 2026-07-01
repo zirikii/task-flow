@@ -14,3 +14,14 @@ export * from './taskDetail';
 export * from './comment';
 export * from './activity';
 export * from './events';
+
+// Suite products
+export * from './confluence';
+export * from './trello';
+export * from './statuspage';
+export * from './servicedesk';
+export * from './discovery';
+export * from './opsgenie';
+export * from './compass';
+export * from './bitbucket';
+export * from './atlas';

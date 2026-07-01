@@ -64,6 +64,23 @@ model User {
   comments      Comment[]
   activities    Activity[]   @relation("ActivityActor")
 
+  // Suite products
+  authoredPages    Page[]           @relation("PageAuthor")
+  incidentUpdates  IncidentUpdate[] @relation("IncidentUpdateAuthor")
+  reportedRequests ServiceRequest[] @relation("RequestReporter")
+  assignedRequests ServiceRequest[] @relation("RequestAssignee")
+  requestComments  RequestComment[] @relation("RequestCommentAuthor")
+  createdIdeas     Idea[]           @relation("IdeaCreator")
+  ideaVotes        IdeaVote[]
+  ackedAlerts      Alert[]          @relation("AlertAckedBy")
+  onCallShifts     OnCallShift[]
+  authoredPullRequests PullRequest[]         @relation("PullRequestAuthor")
+  pullRequestComments  PullRequestComment[]  @relation("PullRequestCommentAuthor")
+  pullRequestApprovals PullRequestApproval[]
+  teamMemberships      TeamMember[]
+  ownedAtlasProjects   AtlasProject[]        @relation("AtlasProjectOwner")
+  atlasProjectUpdates  ProjectUpdate[]       @relation("ProjectUpdateAuthor")
+
   @@map("users")
 }
 
@@ -94,6 +111,19 @@ model Workspace {
   memberships Membership[]
   projects    Project[]
   labels      Label[]
+
+  // Suite products
+  spaces       Space[]
+  trelloBoards TrelloBoard[]
+  statusPages  StatusPage[]
+  serviceDesks    ServiceDesk[]
+  ideaBoards      IdeaBoard[]
+  alerts          Alert[]
+  onCallSchedules OnCallSchedule[]
+  components      Component[]
+  repositories    Repository[]
+  teams           Team[]
+  atlasProjects   AtlasProject[]
 
   @@map("workspaces")
 }
@@ -217,4 +247,552 @@ model Activity {
 
   @@index([taskId])
   @@map("activities")
+}
+
+// ===========================================================================
+// Confluence — spaces & wiki pages
+// ===========================================================================
+
+model Space {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages     Page[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@map("spaces")
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  spaceId   String
+  parentId  String?
+  title     String
+  body      String   @default("")
+  authorId  String
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space    Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  parent   Page?  @relation("PageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Page[] @relation("PageTree")
+  author   User   @relation("PageAuthor", fields: [authorId], references: [id])
+
+  @@index([spaceId])
+  @@index([parentId])
+  @@map("pages")
+}
+
+// ===========================================================================
+// Trello — boards, lists & cards
+// ===========================================================================
+
+model TrelloBoard {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lists     TrelloList[]
+
+  @@index([workspaceId])
+  @@map("trello_boards")
+}
+
+model TrelloList {
+  id        String   @id @default(cuid())
+  boardId   String
+  name      String
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+
+  board TrelloBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards TrelloCard[]
+
+  @@index([boardId])
+  @@map("trello_lists")
+}
+
+model TrelloCard {
+  id          String   @id @default(cuid())
+  listId      String
+  title       String
+  description String?
+  position    Float    @default(1000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  list TrelloList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@map("trello_cards")
+}
+
+// ===========================================================================
+// Statuspage — components & incidents
+// ===========================================================================
+
+enum ComponentStatus {
+  OPERATIONAL
+  DEGRADED
+  PARTIAL_OUTAGE
+  MAJOR_OUTAGE
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+enum IncidentImpact {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+model StatusPage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  components StatusComponent[]
+  incidents  StatusIncident[]
+
+  @@index([workspaceId])
+  @@map("status_pages")
+}
+
+model StatusComponent {
+  id        String          @id @default(cuid())
+  pageId    String
+  name      String
+  status    ComponentStatus @default(OPERATIONAL)
+  position  Float           @default(1000)
+  createdAt DateTime        @default(now())
+
+  page StatusPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@map("status_components")
+}
+
+model StatusIncident {
+  id        String         @id @default(cuid())
+  pageId    String
+  title     String
+  status    IncidentStatus @default(INVESTIGATING)
+  impact    IncidentImpact @default(MINOR)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  page    StatusPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  updates IncidentUpdate[]
+
+  @@index([pageId])
+  @@map("status_incidents")
+}
+
+model IncidentUpdate {
+  id         String         @id @default(cuid())
+  incidentId String
+  body       String
+  status     IncidentStatus
+  authorId   String
+  createdAt  DateTime       @default(now())
+
+  incident StatusIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User           @relation("IncidentUpdateAuthor", fields: [authorId], references: [id])
+
+  @@index([incidentId])
+  @@map("incident_updates")
+}
+
+// ===========================================================================
+// Jira Service Management — service desks, request types & requests
+// ===========================================================================
+
+enum RequestStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+}
+
+model ServiceDesk {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace    Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestTypes RequestType[]
+  requests     ServiceRequest[]
+
+  @@index([workspaceId])
+  @@map("service_desks")
+}
+
+model RequestType {
+  id          String   @id @default(cuid())
+  serviceDeskId String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+
+  serviceDesk ServiceDesk      @relation(fields: [serviceDeskId], references: [id], onDelete: Cascade)
+  requests    ServiceRequest[]
+
+  @@index([serviceDeskId])
+  @@map("request_types")
+}
+
+model ServiceRequest {
+  id            String        @id @default(cuid())
+  serviceDeskId String
+  requestTypeId String
+  summary       String
+  description   String?
+  status        RequestStatus @default(OPEN)
+  priority      Priority      @default(MEDIUM)
+  reporterId    String
+  assigneeId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  serviceDesk ServiceDesk      @relation(fields: [serviceDeskId], references: [id], onDelete: Cascade)
+  requestType RequestType      @relation(fields: [requestTypeId], references: [id])
+  reporter    User             @relation("RequestReporter", fields: [reporterId], references: [id])
+  assignee    User?            @relation("RequestAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  comments    RequestComment[]
+
+  @@index([serviceDeskId, status])
+  @@map("service_requests")
+}
+
+model RequestComment {
+  id        String   @id @default(cuid())
+  requestId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author  User           @relation("RequestCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([requestId])
+  @@map("request_comments")
+}
+
+// ===========================================================================
+// Jira Product Discovery — idea boards, ideas & votes
+// ===========================================================================
+
+enum IdeaStatus {
+  NEW
+  UNDER_REVIEW
+  PLANNED
+  SHIPPED
+}
+
+model IdeaBoard {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ideas     Idea[]
+
+  @@index([workspaceId])
+  @@map("idea_boards")
+}
+
+model Idea {
+  id          String     @id @default(cuid())
+  boardId     String
+  title       String
+  description String?
+  impact      Int        @default(3)
+  effort      Int        @default(3)
+  status      IdeaStatus @default(NEW)
+  creatorId   String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  board   IdeaBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  creator User       @relation("IdeaCreator", fields: [creatorId], references: [id])
+  votes   IdeaVote[]
+
+  @@index([boardId])
+  @@map("ideas")
+}
+
+model IdeaVote {
+  ideaId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, userId])
+  @@index([userId])
+  @@map("idea_votes")
+}
+
+// ===========================================================================
+// Opsgenie — alerts & on-call schedules
+// ===========================================================================
+
+enum AlertPriority {
+  P1
+  P2
+  P3
+  P4
+  P5
+}
+
+enum AlertStatus {
+  OPEN
+  ACKED
+  CLOSED
+}
+
+model Alert {
+  id          String        @id @default(cuid())
+  workspaceId String
+  message     String
+  priority    AlertPriority @default(P3)
+  status      AlertStatus   @default(OPEN)
+  source      String        @default("manual")
+  ackedById   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ackedBy   User?     @relation("AlertAckedBy", fields: [ackedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@map("alerts")
+}
+
+model OnCallSchedule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  shifts    OnCallShift[]
+
+  @@index([workspaceId])
+  @@map("oncall_schedules")
+}
+
+model OnCallShift {
+  id         String   @id @default(cuid())
+  scheduleId String
+  userId     String
+  startsAt   DateTime
+  endsAt     DateTime
+
+  schedule OnCallSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@map("oncall_shifts")
+}
+
+// ===========================================================================
+// Compass — software component catalog
+// ===========================================================================
+
+enum ComponentType {
+  SERVICE
+  LIBRARY
+  APPLICATION
+  WEBSITE
+  DATA_PIPELINE
+}
+
+model Component {
+  id          String        @id @default(cuid())
+  workspaceId String
+  name        String
+  type        ComponentType @default(SERVICE)
+  description String?
+  ownerTeam   String?
+  tier        Int           @default(3)
+  healthScore Int           @default(80)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("components")
+}
+
+// ===========================================================================
+// Bitbucket — repositories & pull requests (metadata only, no real git)
+// ===========================================================================
+
+enum PullRequestStatus {
+  OPEN
+  MERGED
+  DECLINED
+}
+
+model Repository {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String?
+  defaultBranch String   @default("main")
+  language      String?
+  createdAt     DateTime @default(now())
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pullRequests PullRequest[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("repositories")
+}
+
+model PullRequest {
+  id           String            @id @default(cuid())
+  repositoryId String
+  number       Int
+  title        String
+  description  String?
+  status       PullRequestStatus @default(OPEN)
+  sourceBranch String
+  targetBranch String            @default("main")
+  authorId     String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  repository Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  author     User                  @relation("PullRequestAuthor", fields: [authorId], references: [id])
+  comments   PullRequestComment[]
+  approvals  PullRequestApproval[]
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, status])
+  @@map("pull_requests")
+}
+
+model PullRequestComment {
+  id            String   @id @default(cuid())
+  pullRequestId String
+  authorId      String
+  body          String
+  createdAt     DateTime @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  author      User        @relation("PullRequestCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([pullRequestId])
+  @@map("pull_request_comments")
+}
+
+model PullRequestApproval {
+  pullRequestId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, userId])
+  @@index([userId])
+  @@map("pull_request_approvals")
+}
+
+// ===========================================================================
+// Atlas — teams, projects & status updates
+// ===========================================================================
+
+enum AtlasProjectStatus {
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  PAUSED
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  mission     String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  projects  AtlasProject[]
+
+  @@index([workspaceId])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model AtlasProject {
+  id          String             @id @default(cuid())
+  workspaceId String
+  teamId      String?
+  name        String
+  status      AtlasProjectStatus @default(ON_TRACK)
+  ownerId     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  owner     User            @relation("AtlasProjectOwner", fields: [ownerId], references: [id])
+  updates   ProjectUpdate[]
+
+  @@index([workspaceId])
+  @@map("atlas_projects")
+}
+
+model ProjectUpdate {
+  id             String             @id @default(cuid())
+  atlasProjectId String
+  body           String
+  status         AtlasProjectStatus
+  authorId       String
+  createdAt      DateTime           @default(now())
+
+  project AtlasProject @relation(fields: [atlasProjectId], references: [id], onDelete: Cascade)
+  author  User         @relation("ProjectUpdateAuthor", fields: [authorId], references: [id])
+
+  @@index([atlasProjectId])
+  @@map("project_updates")
 }

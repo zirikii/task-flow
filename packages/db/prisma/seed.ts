@@ -17,6 +17,35 @@ async function main(): Promise<void> {
   console.log('🌱 Seeding TaskFlow database...');
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
+  // Suite products first (they reference users/workspaces).
+  await prisma.projectUpdate.deleteMany();
+  await prisma.atlasProject.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.team.deleteMany();
+  await prisma.pullRequestApproval.deleteMany();
+  await prisma.pullRequestComment.deleteMany();
+  await prisma.pullRequest.deleteMany();
+  await prisma.repository.deleteMany();
+  await prisma.component.deleteMany();
+  await prisma.onCallShift.deleteMany();
+  await prisma.onCallSchedule.deleteMany();
+  await prisma.alert.deleteMany();
+  await prisma.ideaVote.deleteMany();
+  await prisma.idea.deleteMany();
+  await prisma.ideaBoard.deleteMany();
+  await prisma.requestComment.deleteMany();
+  await prisma.serviceRequest.deleteMany();
+  await prisma.requestType.deleteMany();
+  await prisma.serviceDesk.deleteMany();
+  await prisma.incidentUpdate.deleteMany();
+  await prisma.statusIncident.deleteMany();
+  await prisma.statusComponent.deleteMany();
+  await prisma.statusPage.deleteMany();
+  await prisma.trelloCard.deleteMany();
+  await prisma.trelloList.deleteMany();
+  await prisma.trelloBoard.deleteMany();
+  await prisma.page.deleteMany();
+  await prisma.space.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.taskLabel.deleteMany();
@@ -195,7 +224,425 @@ async function main(): Promise<void> {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Confluence — a space with a small page tree
+  // -------------------------------------------------------------------------
+  const engSpace = await prisma.space.create({
+    data: {
+      workspaceId: workspace.id,
+      key: 'ENG',
+      name: 'Engineering',
+      description: 'Team docs, runbooks and onboarding.',
+    },
+  });
+
+  const homePage = await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      title: 'Engineering Home',
+      authorId: ada.id,
+      position: 1000,
+      body: [
+        '# Engineering Home',
+        '',
+        'Welcome to the **Engineering** space. This is where we keep our team',
+        'knowledge, runbooks and onboarding material.',
+        '',
+        '## Quick links',
+        '',
+        '- [Onboarding](#) — get set up on your first day',
+        '- [On-call runbook](#) — how we handle incidents',
+        '- [Coding standards](#) — how we write and review code',
+        '',
+        '> Keep pages short and link generously.',
+      ].join('\n'),
+    },
+  });
+
+  await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      parentId: homePage.id,
+      title: 'Onboarding',
+      authorId: grace.id,
+      position: 1000,
+      body: [
+        '# Onboarding',
+        '',
+        'A checklist for your first week:',
+        '',
+        '1. Get access to the repo and CI',
+        '2. Set up your local environment',
+        '3. Ship a small change end-to-end',
+        '4. Pair with a teammate on a review',
+      ].join('\n'),
+    },
+  });
+
+  await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      parentId: homePage.id,
+      title: 'Coding Standards',
+      authorId: ada.id,
+      position: 2000,
+      body: [
+        '# Coding Standards',
+        '',
+        '- Prefer clarity over cleverness',
+        '- Types are the single source of truth',
+        '- Every mutation is validated and authorized',
+        '- Never commit a red build',
+      ].join('\n'),
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Trello — a roadmap board with lists & cards
+  // -------------------------------------------------------------------------
+  const trelloBoard = await prisma.trelloBoard.create({
+    data: { workspaceId: workspace.id, name: 'Product Roadmap' },
+  });
+
+  const trelloListSeed: { name: string; cards: string[] }[] = [
+    { name: 'Backlog', cards: ['Mobile app', 'SSO login', 'Dark mode'] },
+    { name: 'This week', cards: ['Onboarding revamp', 'Billing page'] },
+    { name: 'In progress', cards: ['Realtime sync'] },
+    { name: 'Done', cards: ['Landing page', 'Pricing experiment'] },
+  ];
+
+  for (const [listIndex, seedList] of trelloListSeed.entries()) {
+    const list = await prisma.trelloList.create({
+      data: {
+        boardId: trelloBoard.id,
+        name: seedList.name,
+        position: (listIndex + 1) * 1000,
+      },
+    });
+    for (const [cardIndex, title] of seedList.cards.entries()) {
+      await prisma.trelloCard.create({
+        data: { listId: list.id, title, position: (cardIndex + 1) * 1000 },
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Statuspage — components + a resolved incident
+  // -------------------------------------------------------------------------
+  const statusPage = await prisma.statusPage.create({
+    data: { workspaceId: workspace.id, name: 'Acme Status' },
+  });
+  const componentSeed: { name: string; status: 'OPERATIONAL' | 'DEGRADED' | 'PARTIAL_OUTAGE' | 'MAJOR_OUTAGE' }[] = [
+    { name: 'Web App', status: 'OPERATIONAL' },
+    { name: 'API', status: 'DEGRADED' },
+    { name: 'Realtime (WebSocket)', status: 'OPERATIONAL' },
+    { name: 'Database', status: 'OPERATIONAL' },
+  ];
+  for (const [i, c] of componentSeed.entries()) {
+    await prisma.statusComponent.create({
+      data: { pageId: statusPage.id, name: c.name, status: c.status, position: (i + 1) * 1000 },
+    });
+  }
+  const incident = await prisma.statusIncident.create({
+    data: {
+      pageId: statusPage.id,
+      title: 'Elevated API latency',
+      impact: 'MAJOR',
+      status: 'MONITORING',
+    },
+  });
+  await prisma.incidentUpdate.create({
+    data: {
+      incidentId: incident.id,
+      status: 'INVESTIGATING',
+      authorId: ada.id,
+      body: 'We are investigating reports of slow API responses.',
+      createdAt: new Date(Date.now() - 60 * 60 * 1000),
+    },
+  });
+  await prisma.incidentUpdate.create({
+    data: {
+      incidentId: incident.id,
+      status: 'MONITORING',
+      authorId: grace.id,
+      body: 'A fix has been deployed and we are monitoring recovery.',
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Jira Service Management — a desk with request types & requests
+  // -------------------------------------------------------------------------
+  const desk = await prisma.serviceDesk.create({
+    data: { workspaceId: workspace.id, name: 'IT Support' },
+  });
+  const itHelp = await prisma.requestType.create({
+    data: { serviceDeskId: desk.id, name: 'Get IT help', description: 'Report a problem or ask a question.' },
+  });
+  const accessType = await prisma.requestType.create({
+    data: { serviceDeskId: desk.id, name: 'Request access', description: 'Request access to a system or tool.' },
+  });
+  const req1 = await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: itHelp.id,
+      summary: 'Laptop will not boot',
+      description: 'Black screen on startup after the latest update.',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      reporterId: grace.id,
+      assigneeId: ada.id,
+    },
+  });
+  await prisma.requestComment.create({
+    data: { requestId: req1.id, authorId: ada.id, body: 'Thanks — can you try holding the power button for 10s?' },
+  });
+  await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: accessType.id,
+      summary: 'Access to the analytics dashboard',
+      status: 'OPEN',
+      priority: 'MEDIUM',
+      reporterId: grace.id,
+    },
+  });
+  await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: itHelp.id,
+      summary: 'VPN keeps disconnecting',
+      status: 'WAITING',
+      priority: 'LOW',
+      reporterId: ada.id,
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Jira Product Discovery — an idea board with votes
+  // -------------------------------------------------------------------------
+  const ideaBoard = await prisma.ideaBoard.create({
+    data: { workspaceId: workspace.id, name: 'Roadmap ideas' },
+  });
+  const ideaSeed: {
+    title: string;
+    description: string;
+    impact: number;
+    effort: number;
+    status: 'NEW' | 'UNDER_REVIEW' | 'PLANNED' | 'SHIPPED';
+    voters: string[];
+  }[] = [
+    { title: 'Dark mode', description: 'A dark theme across all products.', impact: 4, effort: 2, status: 'PLANNED', voters: [ada.id, grace.id] },
+    { title: 'Mobile app', description: 'Native iOS + Android apps.', impact: 5, effort: 5, status: 'UNDER_REVIEW', voters: [grace.id] },
+    { title: 'Slack integration', description: 'Notify channels on key events.', impact: 3, effort: 2, status: 'NEW', voters: [ada.id] },
+    { title: 'CSV export', description: 'Export any list to CSV.', impact: 2, effort: 1, status: 'SHIPPED', voters: [] },
+    { title: 'AI summaries', description: 'Summarize long threads and pages.', impact: 5, effort: 4, status: 'NEW', voters: [ada.id, grace.id] },
+  ];
+  for (const seed of ideaSeed) {
+    const idea = await prisma.idea.create({
+      data: {
+        boardId: ideaBoard.id,
+        title: seed.title,
+        description: seed.description,
+        impact: seed.impact,
+        effort: seed.effort,
+        status: seed.status,
+        creatorId: ada.id,
+      },
+    });
+    for (const userId of seed.voters) {
+      await prisma.ideaVote.create({ data: { ideaId: idea.id, userId } });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Opsgenie — alerts + an on-call schedule (Ada on call now)
+  // -------------------------------------------------------------------------
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'High error rate on checkout service',
+      priority: 'P1',
+      status: 'OPEN',
+      source: 'Datadog',
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'Disk usage above 85% on db-primary',
+      priority: 'P3',
+      status: 'ACKED',
+      source: 'Prometheus',
+      ackedById: grace.id,
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'Nightly backup completed with warnings',
+      priority: 'P5',
+      status: 'CLOSED',
+      source: 'cron',
+    },
+  });
+  const schedule = await prisma.onCallSchedule.create({
+    data: { workspaceId: workspace.id, name: 'Primary' },
+  });
+  const now = Date.now();
+  await prisma.onCallShift.create({
+    data: {
+      scheduleId: schedule.id,
+      userId: ada.id,
+      startsAt: new Date(now - 2 * 60 * 60 * 1000),
+      endsAt: new Date(now + 6 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.onCallShift.create({
+    data: {
+      scheduleId: schedule.id,
+      userId: grace.id,
+      startsAt: new Date(now + 6 * 60 * 60 * 1000),
+      endsAt: new Date(now + 14 * 60 * 60 * 1000),
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Compass — component catalog
+  // -------------------------------------------------------------------------
+  const componentSeedList: {
+    name: string;
+    type: 'SERVICE' | 'LIBRARY' | 'APPLICATION' | 'WEBSITE' | 'DATA_PIPELINE';
+    ownerTeam: string;
+    tier: number;
+    healthScore: number;
+    description: string;
+  }[] = [
+    { name: 'checkout-service', type: 'SERVICE', ownerTeam: 'Payments', tier: 1, healthScore: 68, description: 'Handles cart checkout and payment capture.' },
+    { name: 'auth-service', type: 'SERVICE', ownerTeam: 'Platform', tier: 1, healthScore: 91, description: 'Sessions, login and authorization.' },
+    { name: 'ui-kit', type: 'LIBRARY', ownerTeam: 'Design Systems', tier: 3, healthScore: 96, description: 'Shared React component library.' },
+    { name: 'marketing-site', type: 'WEBSITE', ownerTeam: 'Growth', tier: 3, healthScore: 82, description: 'Public marketing website.' },
+    { name: 'events-pipeline', type: 'DATA_PIPELINE', ownerTeam: 'Data', tier: 2, healthScore: 47, description: 'Ingests and processes product analytics events.' },
+    { name: 'mobile-app', type: 'APPLICATION', ownerTeam: 'Mobile', tier: 2, healthScore: 74, description: 'iOS & Android client.' },
+  ];
+  for (const c of componentSeedList) {
+    await prisma.component.create({ data: { workspaceId: workspace.id, ...c } });
+  }
+
+  // -------------------------------------------------------------------------
+  // Bitbucket — repositories & pull requests
+  // -------------------------------------------------------------------------
+  const webRepo = await prisma.repository.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'web-app',
+      description: 'The customer-facing web application.',
+      language: 'TypeScript',
+    },
+  });
+  await prisma.repository.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'api',
+      description: 'Fastify + tRPC backend.',
+      language: 'TypeScript',
+    },
+  });
+  const openPr = await prisma.pullRequest.create({
+    data: {
+      repositoryId: webRepo.id,
+      number: 1,
+      title: 'Add dark mode toggle',
+      description: 'Implements a dark theme using the shared design tokens.',
+      status: 'OPEN',
+      sourceBranch: 'feat/dark-mode',
+      targetBranch: 'main',
+      authorId: grace.id,
+    },
+  });
+  await prisma.pullRequestComment.create({
+    data: { pullRequestId: openPr.id, authorId: ada.id, body: 'Looks great — one nit on the toggle a11y.' },
+  });
+  await prisma.pullRequestApproval.create({
+    data: { pullRequestId: openPr.id, userId: ada.id },
+  });
+  await prisma.pullRequest.create({
+    data: {
+      repositoryId: webRepo.id,
+      number: 2,
+      title: 'Fix flaky session refresh',
+      status: 'MERGED',
+      sourceBranch: 'fix/session',
+      targetBranch: 'main',
+      authorId: ada.id,
+    },
+  });
+
+  // -------------------------------------------------------------------------
+  // Atlas — teams + projects with status updates
+  // -------------------------------------------------------------------------
+  const platformTeam = await prisma.team.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Platform',
+      mission: 'Keep the platform fast, reliable and secure.',
+      members: { create: [{ userId: ada.id }, { userId: grace.id }] },
+    },
+  });
+  const growthTeam = await prisma.team.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Growth',
+      mission: 'Help more teams discover and adopt the product.',
+      members: { create: [{ userId: grace.id }] },
+    },
+  });
+
+  const activation = await prisma.atlasProject.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Q3 Onboarding revamp',
+      teamId: growthTeam.id,
+      status: 'AT_RISK',
+      ownerId: grace.id,
+    },
+  });
+  await prisma.projectUpdate.create({
+    data: {
+      atlasProjectId: activation.id,
+      status: 'ON_TRACK',
+      authorId: grace.id,
+      body: 'Kicked off — designs are in review.',
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.projectUpdate.create({
+    data: {
+      atlasProjectId: activation.id,
+      status: 'AT_RISK',
+      authorId: grace.id,
+      body: 'Design review slipped a week; pulling in another engineer.',
+    },
+  });
+  await prisma.atlasProject.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Realtime infrastructure',
+      teamId: platformTeam.id,
+      status: 'ON_TRACK',
+      ownerId: ada.id,
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
+  console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
+  console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
+  console.log('✅ Seeded Statuspage "Acme Status" with components + an incident.');
+  console.log('✅ Seeded Service desk "IT Support" with request types + requests.');
+  console.log('✅ Seeded Product Discovery board "Roadmap ideas" with 5 ideas.');
+  console.log('✅ Seeded Opsgenie alerts + on-call schedule "Primary".');
+  console.log('✅ Seeded Compass catalog with 6 components.');
+  console.log('✅ Seeded Bitbucket repos "web-app" + "api" with pull requests.');
+  console.log('✅ Seeded Atlas teams "Platform"/"Growth" + projects with updates.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }
