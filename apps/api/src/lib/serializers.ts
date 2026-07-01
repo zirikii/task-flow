@@ -3,7 +3,10 @@ import type {
   Activity,
   Comment,
   Label,
+  Page,
+  PageNode,
   Project,
+  Space,
   Task,
   TaskDetail,
   UserRef,
@@ -116,5 +119,47 @@ export function toTaskDetail(task: TaskDetailRow): TaskDetail {
     ...toTask(task),
     comments: task.comments.map(toComment),
     activities: task.activities.map(toActivity),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Confluence
+// ---------------------------------------------------------------------------
+
+type SpaceRow = Prisma.SpaceGetPayload<true>;
+type PageRow = Prisma.PageGetPayload<{ include: { author: true } }>;
+
+export function toSpace(space: SpaceRow): Space {
+  return {
+    id: space.id,
+    workspaceId: space.workspaceId,
+    key: space.key,
+    name: space.name,
+    description: space.description,
+    createdAt: space.createdAt,
+  };
+}
+
+export function toPageNode(page: Pick<PageRow, 'id' | 'spaceId' | 'parentId' | 'title' | 'position'>): PageNode {
+  return {
+    id: page.id,
+    spaceId: page.spaceId,
+    parentId: page.parentId,
+    title: page.title,
+    position: page.position,
+  };
+}
+
+export function toPage(page: PageRow): Page {
+  return {
+    id: page.id,
+    spaceId: page.spaceId,
+    parentId: page.parentId,
+    title: page.title,
+    body: page.body,
+    author: toUserRef(page.author),
+    position: page.position,
+    createdAt: page.createdAt,
+    updatedAt: page.updatedAt,
   };
 }

@@ -5,6 +5,7 @@ import { projectRouter } from './routers/project';
 import { taskRouter } from './routers/task';
 import { labelRouter } from './routers/label';
 import { commentRouter } from './routers/comment';
+import { confluenceRouter } from './routers/confluence';
 
 export const appRouter = router({
   auth: authRouter,
@@ -13,6 +14,7 @@ export const appRouter = router({
   task: taskRouter,
   label: labelRouter,
   comment: commentRouter,
+  confluence: confluenceRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -14,3 +14,6 @@ export * from './taskDetail';
 export * from './comment';
 export * from './activity';
 export * from './events';
+
+// Suite products
+export * from './confluence';

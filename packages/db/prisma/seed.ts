@@ -17,6 +17,9 @@ async function main(): Promise<void> {
   console.log('🌱 Seeding TaskFlow database...');
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
+  // Suite products first (they reference users/workspaces).
+  await prisma.page.deleteMany();
+  await prisma.space.deleteMany();
   await prisma.activity.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.taskLabel.deleteMany();
@@ -195,7 +198,81 @@ async function main(): Promise<void> {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Confluence — a space with a small page tree
+  // -------------------------------------------------------------------------
+  const engSpace = await prisma.space.create({
+    data: {
+      workspaceId: workspace.id,
+      key: 'ENG',
+      name: 'Engineering',
+      description: 'Team docs, runbooks and onboarding.',
+    },
+  });
+
+  const homePage = await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      title: 'Engineering Home',
+      authorId: ada.id,
+      position: 1000,
+      body: [
+        '# Engineering Home',
+        '',
+        'Welcome to the **Engineering** space. This is where we keep our team',
+        'knowledge, runbooks and onboarding material.',
+        '',
+        '## Quick links',
+        '',
+        '- [Onboarding](#) — get set up on your first day',
+        '- [On-call runbook](#) — how we handle incidents',
+        '- [Coding standards](#) — how we write and review code',
+        '',
+        '> Keep pages short and link generously.',
+      ].join('\n'),
+    },
+  });
+
+  await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      parentId: homePage.id,
+      title: 'Onboarding',
+      authorId: grace.id,
+      position: 1000,
+      body: [
+        '# Onboarding',
+        '',
+        'A checklist for your first week:',
+        '',
+        '1. Get access to the repo and CI',
+        '2. Set up your local environment',
+        '3. Ship a small change end-to-end',
+        '4. Pair with a teammate on a review',
+      ].join('\n'),
+    },
+  });
+
+  await prisma.page.create({
+    data: {
+      spaceId: engSpace.id,
+      parentId: homePage.id,
+      title: 'Coding Standards',
+      authorId: ada.id,
+      position: 2000,
+      body: [
+        '# Coding Standards',
+        '',
+        '- Prefer clarity over cleverness',
+        '- Types are the single source of truth',
+        '- Every mutation is validated and authorized',
+        '- Never commit a red build',
+      ].join('\n'),
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
+  console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

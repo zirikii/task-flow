@@ -64,6 +64,9 @@ model User {
   comments      Comment[]
   activities    Activity[]   @relation("ActivityActor")
 
+  // Suite products
+  authoredPages Page[] @relation("PageAuthor")
+
   @@map("users")
 }
 
@@ -94,6 +97,9 @@ model Workspace {
   memberships Membership[]
   projects    Project[]
   labels      Label[]
+
+  // Suite products
+  spaces Space[]
 
   @@map("workspaces")
 }
@@ -217,4 +223,46 @@ model Activity {
 
   @@index([taskId])
   @@map("activities")
+}
+
+// ===========================================================================
+// Confluence — spaces & wiki pages
+// ===========================================================================
+
+model Space {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages     Page[]
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+  @@map("spaces")
+}
+
+model Page {
+  id        String   @id @default(cuid())
+  spaceId   String
+  parentId  String?
+  title     String
+  body      String   @default("")
+  authorId  String
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  space    Space  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  parent   Page?  @relation("PageTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children Page[] @relation("PageTree")
+  author   User   @relation("PageAuthor", fields: [authorId], references: [id])
+
+  @@index([spaceId])
+  @@index([parentId])
+  @@map("pages")
 }
