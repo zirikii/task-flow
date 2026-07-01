@@ -65,7 +65,8 @@ model User {
   activities    Activity[]   @relation("ActivityActor")
 
   // Suite products
-  authoredPages Page[] @relation("PageAuthor")
+  authoredPages   Page[]           @relation("PageAuthor")
+  incidentUpdates IncidentUpdate[] @relation("IncidentUpdateAuthor")
 
   @@map("users")
 }
@@ -101,6 +102,7 @@ model Workspace {
   // Suite products
   spaces       Space[]
   trelloBoards TrelloBoard[]
+  statusPages  StatusPage[]
 
   @@map("workspaces")
 }
@@ -313,4 +315,87 @@ model TrelloCard {
 
   @@index([listId])
   @@map("trello_cards")
+}
+
+// ===========================================================================
+// Statuspage — components & incidents
+// ===========================================================================
+
+enum ComponentStatus {
+  OPERATIONAL
+  DEGRADED
+  PARTIAL_OUTAGE
+  MAJOR_OUTAGE
+}
+
+enum IncidentStatus {
+  INVESTIGATING
+  IDENTIFIED
+  MONITORING
+  RESOLVED
+}
+
+enum IncidentImpact {
+  MINOR
+  MAJOR
+  CRITICAL
+}
+
+model StatusPage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  components StatusComponent[]
+  incidents  StatusIncident[]
+
+  @@index([workspaceId])
+  @@map("status_pages")
+}
+
+model StatusComponent {
+  id        String          @id @default(cuid())
+  pageId    String
+  name      String
+  status    ComponentStatus @default(OPERATIONAL)
+  position  Float           @default(1000)
+  createdAt DateTime        @default(now())
+
+  page StatusPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@map("status_components")
+}
+
+model StatusIncident {
+  id        String         @id @default(cuid())
+  pageId    String
+  title     String
+  status    IncidentStatus @default(INVESTIGATING)
+  impact    IncidentImpact @default(MINOR)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  page    StatusPage       @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  updates IncidentUpdate[]
+
+  @@index([pageId])
+  @@map("status_incidents")
+}
+
+model IncidentUpdate {
+  id         String         @id @default(cuid())
+  incidentId String
+  body       String
+  status     IncidentStatus
+  authorId   String
+  createdAt  DateTime       @default(now())
+
+  incident StatusIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User           @relation("IncidentUpdateAuthor", fields: [authorId], references: [id])
+
+  @@index([incidentId])
+  @@map("incident_updates")
 }

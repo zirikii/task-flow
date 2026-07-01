@@ -18,6 +18,10 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.incidentUpdate.deleteMany();
+  await prisma.statusIncident.deleteMany();
+  await prisma.statusComponent.deleteMany();
+  await prisma.statusPage.deleteMany();
   await prisma.trelloCard.deleteMany();
   await prisma.trelloList.deleteMany();
   await prisma.trelloBoard.deleteMany();
@@ -303,9 +307,53 @@ async function main(): Promise<void> {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Statuspage — components + a resolved incident
+  // -------------------------------------------------------------------------
+  const statusPage = await prisma.statusPage.create({
+    data: { workspaceId: workspace.id, name: 'Acme Status' },
+  });
+  const componentSeed: { name: string; status: 'OPERATIONAL' | 'DEGRADED' | 'PARTIAL_OUTAGE' | 'MAJOR_OUTAGE' }[] = [
+    { name: 'Web App', status: 'OPERATIONAL' },
+    { name: 'API', status: 'DEGRADED' },
+    { name: 'Realtime (WebSocket)', status: 'OPERATIONAL' },
+    { name: 'Database', status: 'OPERATIONAL' },
+  ];
+  for (const [i, c] of componentSeed.entries()) {
+    await prisma.statusComponent.create({
+      data: { pageId: statusPage.id, name: c.name, status: c.status, position: (i + 1) * 1000 },
+    });
+  }
+  const incident = await prisma.statusIncident.create({
+    data: {
+      pageId: statusPage.id,
+      title: 'Elevated API latency',
+      impact: 'MAJOR',
+      status: 'MONITORING',
+    },
+  });
+  await prisma.incidentUpdate.create({
+    data: {
+      incidentId: incident.id,
+      status: 'INVESTIGATING',
+      authorId: ada.id,
+      body: 'We are investigating reports of slow API responses.',
+      createdAt: new Date(Date.now() - 60 * 60 * 1000),
+    },
+  });
+  await prisma.incidentUpdate.create({
+    data: {
+      incidentId: incident.id,
+      status: 'MONITORING',
+      authorId: grace.id,
+      body: 'A fix has been deployed and we are monitoring recovery.',
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
+  console.log('✅ Seeded Statuspage "Acme Status" with components + an incident.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

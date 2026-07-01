@@ -18,3 +18,4 @@ export * from './events';
 // Suite products
 export * from './confluence';
 export * from './trello';
+export * from './statuspage';

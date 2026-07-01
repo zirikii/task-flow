@@ -12,6 +12,11 @@ import type {
   TrelloBoardDetail,
   TrelloCard,
   TrelloList,
+  StatusComponent,
+  StatusIncident,
+  StatusPage,
+  StatusPageDetail,
+  IncidentUpdate,
   TaskDetail,
   UserRef,
   Workspace,
@@ -219,5 +224,79 @@ export function toTrelloBoardDetail(board: TrelloBoardDetailRow): TrelloBoardDet
     lists: [...board.lists]
       .sort((a, b) => a.position - b.position)
       .map(toTrelloList),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Statuspage
+// ---------------------------------------------------------------------------
+
+type StatusPageRow = Prisma.StatusPageGetPayload<true>;
+type StatusComponentRow = Prisma.StatusComponentGetPayload<true>;
+type IncidentUpdateRow = Prisma.IncidentUpdateGetPayload<{ include: { author: true } }>;
+type StatusIncidentRow = Prisma.StatusIncidentGetPayload<{
+  include: { updates: { include: { author: true } } };
+}>;
+type StatusPageDetailRow = Prisma.StatusPageGetPayload<{
+  include: {
+    components: true;
+    incidents: { include: { updates: { include: { author: true } } } };
+  };
+}>;
+
+export function toStatusPage(page: StatusPageRow): StatusPage {
+  return {
+    id: page.id,
+    workspaceId: page.workspaceId,
+    name: page.name,
+    createdAt: page.createdAt,
+  };
+}
+
+export function toStatusComponent(component: StatusComponentRow): StatusComponent {
+  return {
+    id: component.id,
+    pageId: component.pageId,
+    name: component.name,
+    status: component.status,
+    position: component.position,
+  };
+}
+
+export function toIncidentUpdate(update: IncidentUpdateRow): IncidentUpdate {
+  return {
+    id: update.id,
+    incidentId: update.incidentId,
+    body: update.body,
+    status: update.status,
+    author: toUserRef(update.author),
+    createdAt: update.createdAt,
+  };
+}
+
+export function toStatusIncident(incident: StatusIncidentRow): StatusIncident {
+  return {
+    id: incident.id,
+    pageId: incident.pageId,
+    title: incident.title,
+    status: incident.status,
+    impact: incident.impact,
+    createdAt: incident.createdAt,
+    updatedAt: incident.updatedAt,
+    updates: [...incident.updates]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(toIncidentUpdate),
+  };
+}
+
+export function toStatusPageDetail(page: StatusPageDetailRow): StatusPageDetail {
+  return {
+    ...toStatusPage(page),
+    components: [...page.components]
+      .sort((a, b) => a.position - b.position)
+      .map(toStatusComponent),
+    incidents: [...page.incidents]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(toStatusIncident),
   };
 }
