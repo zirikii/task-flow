@@ -8,6 +8,10 @@ import type {
   Project,
   Space,
   Task,
+  TrelloBoard,
+  TrelloBoardDetail,
+  TrelloCard,
+  TrelloList,
   TaskDetail,
   UserRef,
   Workspace,
@@ -161,5 +165,59 @@ export function toPage(page: PageRow): Page {
     position: page.position,
     createdAt: page.createdAt,
     updatedAt: page.updatedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Trello
+// ---------------------------------------------------------------------------
+
+type TrelloBoardRow = Prisma.TrelloBoardGetPayload<true>;
+type TrelloCardRow = Prisma.TrelloCardGetPayload<true>;
+type TrelloListRow = Prisma.TrelloListGetPayload<{ include: { cards: true } }>;
+type TrelloBoardDetailRow = Prisma.TrelloBoardGetPayload<{
+  include: { lists: { include: { cards: true } } };
+}>;
+
+export function toTrelloBoard(board: TrelloBoardRow): TrelloBoard {
+  return {
+    id: board.id,
+    workspaceId: board.workspaceId,
+    name: board.name,
+    createdAt: board.createdAt,
+  };
+}
+
+export function toTrelloCard(card: TrelloCardRow): TrelloCard {
+  return {
+    id: card.id,
+    listId: card.listId,
+    title: card.title,
+    description: card.description,
+    position: card.position,
+    createdAt: card.createdAt,
+  };
+}
+
+export function toTrelloList(list: TrelloListRow): TrelloList {
+  return {
+    id: list.id,
+    boardId: list.boardId,
+    name: list.name,
+    position: list.position,
+    cards: [...list.cards]
+      .sort((a, b) => a.position - b.position)
+      .map(toTrelloCard),
+  };
+}
+
+export function toTrelloBoardDetail(board: TrelloBoardDetailRow): TrelloBoardDetail {
+  return {
+    id: board.id,
+    workspaceId: board.workspaceId,
+    name: board.name,
+    lists: [...board.lists]
+      .sort((a, b) => a.position - b.position)
+      .map(toTrelloList),
   };
 }

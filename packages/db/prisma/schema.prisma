@@ -99,7 +99,8 @@ model Workspace {
   labels      Label[]
 
   // Suite products
-  spaces Space[]
+  spaces       Space[]
+  trelloBoards TrelloBoard[]
 
   @@map("workspaces")
 }
@@ -265,4 +266,51 @@ model Page {
   @@index([spaceId])
   @@index([parentId])
   @@map("pages")
+}
+
+// ===========================================================================
+// Trello — boards, lists & cards
+// ===========================================================================
+
+model TrelloBoard {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  lists     TrelloList[]
+
+  @@index([workspaceId])
+  @@map("trello_boards")
+}
+
+model TrelloList {
+  id        String   @id @default(cuid())
+  boardId   String
+  name      String
+  position  Float    @default(1000)
+  createdAt DateTime @default(now())
+
+  board TrelloBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  cards TrelloCard[]
+
+  @@index([boardId])
+  @@map("trello_lists")
+}
+
+model TrelloCard {
+  id          String   @id @default(cuid())
+  listId      String
+  title       String
+  description String?
+  position    Float    @default(1000)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  list TrelloList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@map("trello_cards")
 }

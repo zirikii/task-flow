@@ -17,3 +17,4 @@ export * from './events';
 
 // Suite products
 export * from './confluence';
+export * from './trello';

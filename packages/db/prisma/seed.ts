@@ -18,6 +18,9 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.trelloCard.deleteMany();
+  await prisma.trelloList.deleteMany();
+  await prisma.trelloBoard.deleteMany();
   await prisma.page.deleteMany();
   await prisma.space.deleteMany();
   await prisma.activity.deleteMany();
@@ -271,8 +274,38 @@ async function main(): Promise<void> {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Trello — a roadmap board with lists & cards
+  // -------------------------------------------------------------------------
+  const trelloBoard = await prisma.trelloBoard.create({
+    data: { workspaceId: workspace.id, name: 'Product Roadmap' },
+  });
+
+  const trelloListSeed: { name: string; cards: string[] }[] = [
+    { name: 'Backlog', cards: ['Mobile app', 'SSO login', 'Dark mode'] },
+    { name: 'This week', cards: ['Onboarding revamp', 'Billing page'] },
+    { name: 'In progress', cards: ['Realtime sync'] },
+    { name: 'Done', cards: ['Landing page', 'Pricing experiment'] },
+  ];
+
+  for (const [listIndex, seedList] of trelloListSeed.entries()) {
+    const list = await prisma.trelloList.create({
+      data: {
+        boardId: trelloBoard.id,
+        name: seedList.name,
+        position: (listIndex + 1) * 1000,
+      },
+    });
+    for (const [cardIndex, title] of seedList.cards.entries()) {
+      await prisma.trelloCard.create({
+        data: { listId: list.id, title, position: (cardIndex + 1) * 1000 },
+      });
+    }
+  }
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
+  console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }
