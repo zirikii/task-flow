@@ -72,6 +72,8 @@ model User {
   requestComments  RequestComment[] @relation("RequestCommentAuthor")
   createdIdeas     Idea[]           @relation("IdeaCreator")
   ideaVotes        IdeaVote[]
+  ackedAlerts      Alert[]          @relation("AlertAckedBy")
+  onCallShifts     OnCallShift[]
 
   @@map("users")
 }
@@ -108,8 +110,10 @@ model Workspace {
   spaces       Space[]
   trelloBoards TrelloBoard[]
   statusPages  StatusPage[]
-  serviceDesks ServiceDesk[]
-  ideaBoards   IdeaBoard[]
+  serviceDesks    ServiceDesk[]
+  ideaBoards      IdeaBoard[]
+  alerts          Alert[]
+  onCallSchedules OnCallSchedule[]
 
   @@map("workspaces")
 }
@@ -538,4 +542,67 @@ model IdeaVote {
   @@id([ideaId, userId])
   @@index([userId])
   @@map("idea_votes")
+}
+
+// ===========================================================================
+// Opsgenie — alerts & on-call schedules
+// ===========================================================================
+
+enum AlertPriority {
+  P1
+  P2
+  P3
+  P4
+  P5
+}
+
+enum AlertStatus {
+  OPEN
+  ACKED
+  CLOSED
+}
+
+model Alert {
+  id          String        @id @default(cuid())
+  workspaceId String
+  message     String
+  priority    AlertPriority @default(P3)
+  status      AlertStatus   @default(OPEN)
+  source      String        @default("manual")
+  ackedById   String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ackedBy   User?     @relation("AlertAckedBy", fields: [ackedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@map("alerts")
+}
+
+model OnCallSchedule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  shifts    OnCallShift[]
+
+  @@index([workspaceId])
+  @@map("oncall_schedules")
+}
+
+model OnCallShift {
+  id         String   @id @default(cuid())
+  scheduleId String
+  userId     String
+  startsAt   DateTime
+  endsAt     DateTime
+
+  schedule OnCallSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([scheduleId])
+  @@map("oncall_shifts")
 }

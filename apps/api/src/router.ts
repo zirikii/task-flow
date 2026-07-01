@@ -10,6 +10,7 @@ import { trelloRouter } from './routers/trello';
 import { statuspageRouter } from './routers/statuspage';
 import { servicedeskRouter } from './routers/servicedesk';
 import { discoveryRouter } from './routers/discovery';
+import { opsgenieRouter } from './routers/opsgenie';
 
 export const appRouter = router({
   auth: authRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   statuspage: statuspageRouter,
   servicedesk: servicedeskRouter,
   discovery: discoveryRouter,
+  opsgenie: opsgenieRouter,
 });
 
 export type AppRouter = typeof appRouter;

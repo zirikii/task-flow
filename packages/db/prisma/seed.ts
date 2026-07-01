@@ -18,6 +18,9 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.onCallShift.deleteMany();
+  await prisma.onCallSchedule.deleteMany();
+  await prisma.alert.deleteMany();
   await prisma.ideaVote.deleteMany();
   await prisma.idea.deleteMany();
   await prisma.ideaBoard.deleteMany();
@@ -442,12 +445,65 @@ async function main(): Promise<void> {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Opsgenie — alerts + an on-call schedule (Ada on call now)
+  // -------------------------------------------------------------------------
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'High error rate on checkout service',
+      priority: 'P1',
+      status: 'OPEN',
+      source: 'Datadog',
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'Disk usage above 85% on db-primary',
+      priority: 'P3',
+      status: 'ACKED',
+      source: 'Prometheus',
+      ackedById: grace.id,
+    },
+  });
+  await prisma.alert.create({
+    data: {
+      workspaceId: workspace.id,
+      message: 'Nightly backup completed with warnings',
+      priority: 'P5',
+      status: 'CLOSED',
+      source: 'cron',
+    },
+  });
+  const schedule = await prisma.onCallSchedule.create({
+    data: { workspaceId: workspace.id, name: 'Primary' },
+  });
+  const now = Date.now();
+  await prisma.onCallShift.create({
+    data: {
+      scheduleId: schedule.id,
+      userId: ada.id,
+      startsAt: new Date(now - 2 * 60 * 60 * 1000),
+      endsAt: new Date(now + 6 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.onCallShift.create({
+    data: {
+      scheduleId: schedule.id,
+      userId: grace.id,
+      startsAt: new Date(now + 6 * 60 * 60 * 1000),
+      endsAt: new Date(now + 14 * 60 * 60 * 1000),
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
   console.log('✅ Seeded Statuspage "Acme Status" with components + an incident.');
   console.log('✅ Seeded Service desk "IT Support" with request types + requests.');
   console.log('✅ Seeded Product Discovery board "Roadmap ideas" with 5 ideas.');
+  console.log('✅ Seeded Opsgenie alerts + on-call schedule "Primary".');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

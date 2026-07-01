@@ -24,6 +24,9 @@ import type {
   ServiceRequestDetail,
   IdeaBoard,
   Idea,
+  Alert,
+  OnCallShift,
+  OnCallSchedule,
   TaskDetail,
   UserRef,
   Workspace,
@@ -411,5 +414,52 @@ export function toIdea(idea: IdeaRow, currentUserId: string): Idea {
     votes: idea.votes.length,
     hasVoted: idea.votes.some((vote) => vote.userId === currentUserId),
     createdAt: idea.createdAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Opsgenie
+// ---------------------------------------------------------------------------
+
+type AlertRow = Prisma.AlertGetPayload<{ include: { ackedBy: true } }>;
+type ShiftRow = Prisma.OnCallShiftGetPayload<{ include: { user: true } }>;
+type ScheduleRow = Prisma.OnCallScheduleGetPayload<{
+  include: { shifts: { include: { user: true } } };
+}>;
+
+export function toAlert(alert: AlertRow): Alert {
+  return {
+    id: alert.id,
+    workspaceId: alert.workspaceId,
+    message: alert.message,
+    priority: alert.priority,
+    status: alert.status,
+    source: alert.source,
+    ackedBy: alert.ackedBy ? toUserRef(alert.ackedBy) : null,
+    createdAt: alert.createdAt,
+  };
+}
+
+export function toOnCallShift(shift: ShiftRow): OnCallShift {
+  return {
+    id: shift.id,
+    scheduleId: shift.scheduleId,
+    user: toUserRef(shift.user),
+    startsAt: shift.startsAt,
+    endsAt: shift.endsAt,
+  };
+}
+
+export function toOnCallSchedule(schedule: ScheduleRow, now: Date = new Date()): OnCallSchedule {
+  const shifts = [...schedule.shifts].sort(
+    (a, b) => a.startsAt.getTime() - b.startsAt.getTime(),
+  );
+  const current = shifts.find((shift) => shift.startsAt <= now && shift.endsAt > now);
+  return {
+    id: schedule.id,
+    workspaceId: schedule.workspaceId,
+    name: schedule.name,
+    shifts: shifts.map(toOnCallShift),
+    currentOnCall: current ? toUserRef(current.user) : null,
   };
 }
