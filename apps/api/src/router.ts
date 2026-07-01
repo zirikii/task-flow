@@ -12,6 +12,7 @@ import { servicedeskRouter } from './routers/servicedesk';
 import { discoveryRouter } from './routers/discovery';
 import { opsgenieRouter } from './routers/opsgenie';
 import { compassRouter } from './routers/compass';
+import { bitbucketRouter } from './routers/bitbucket';
 
 export const appRouter = router({
   auth: authRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   discovery: discoveryRouter,
   opsgenie: opsgenieRouter,
   compass: compassRouter,
+  bitbucket: bitbucketRouter,
 });
 
 export type AppRouter = typeof appRouter;

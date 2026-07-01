@@ -28,6 +28,10 @@ import type {
   OnCallShift,
   OnCallSchedule,
   Component,
+  Repository,
+  PullRequest,
+  PullRequestComment,
+  PullRequestDetail,
   TaskDetail,
   UserRef,
   Workspace,
@@ -482,5 +486,85 @@ export function toComponent(component: ComponentRow): Component {
     tier: component.tier,
     healthScore: component.healthScore,
     createdAt: component.createdAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bitbucket
+// ---------------------------------------------------------------------------
+
+type RepositoryRow = Prisma.RepositoryGetPayload<{ include: { _count: { select: { pullRequests: true } } } }>;
+type PullRequestRow = Prisma.PullRequestGetPayload<{
+  include: { author: true; _count: { select: { approvals: true } } };
+}>;
+type PullRequestCommentRow = Prisma.PullRequestCommentGetPayload<{ include: { author: true } }>;
+type PullRequestDetailRow = Prisma.PullRequestGetPayload<{
+  include: {
+    author: true;
+    comments: { include: { author: true } };
+    approvals: { include: { user: true } };
+  };
+}>;
+
+export function toRepository(repo: RepositoryRow, openPullRequests: number): Repository {
+  return {
+    id: repo.id,
+    workspaceId: repo.workspaceId,
+    name: repo.name,
+    description: repo.description,
+    defaultBranch: repo.defaultBranch,
+    language: repo.language,
+    openPullRequests,
+    createdAt: repo.createdAt,
+  };
+}
+
+export function toPullRequest(pr: PullRequestRow): PullRequest {
+  return {
+    id: pr.id,
+    repositoryId: pr.repositoryId,
+    number: pr.number,
+    title: pr.title,
+    description: pr.description,
+    status: pr.status,
+    sourceBranch: pr.sourceBranch,
+    targetBranch: pr.targetBranch,
+    author: toUserRef(pr.author),
+    approvals: pr._count.approvals,
+    createdAt: pr.createdAt,
+  };
+}
+
+export function toPullRequestComment(comment: PullRequestCommentRow): PullRequestComment {
+  return {
+    id: comment.id,
+    pullRequestId: comment.pullRequestId,
+    body: comment.body,
+    author: toUserRef(comment.author),
+    createdAt: comment.createdAt,
+  };
+}
+
+export function toPullRequestDetail(
+  pr: PullRequestDetailRow,
+  currentUserId: string,
+): PullRequestDetail {
+  return {
+    id: pr.id,
+    repositoryId: pr.repositoryId,
+    number: pr.number,
+    title: pr.title,
+    description: pr.description,
+    status: pr.status,
+    sourceBranch: pr.sourceBranch,
+    targetBranch: pr.targetBranch,
+    author: toUserRef(pr.author),
+    approvals: pr.approvals.length,
+    comments: [...pr.comments]
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .map(toPullRequestComment),
+    approvedBy: pr.approvals.map((approval) => toUserRef(approval.user)),
+    hasApproved: pr.approvals.some((approval) => approval.userId === currentUserId),
+    createdAt: pr.createdAt,
   };
 }

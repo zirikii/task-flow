@@ -74,6 +74,9 @@ model User {
   ideaVotes        IdeaVote[]
   ackedAlerts      Alert[]          @relation("AlertAckedBy")
   onCallShifts     OnCallShift[]
+  authoredPullRequests PullRequest[]         @relation("PullRequestAuthor")
+  pullRequestComments  PullRequestComment[]  @relation("PullRequestCommentAuthor")
+  pullRequestApprovals PullRequestApproval[]
 
   @@map("users")
 }
@@ -115,6 +118,7 @@ model Workspace {
   alerts          Alert[]
   onCallSchedules OnCallSchedule[]
   components      Component[]
+  repositories    Repository[]
 
   @@map("workspaces")
 }
@@ -636,4 +640,81 @@ model Component {
 
   @@index([workspaceId])
   @@map("components")
+}
+
+// ===========================================================================
+// Bitbucket — repositories & pull requests (metadata only, no real git)
+// ===========================================================================
+
+enum PullRequestStatus {
+  OPEN
+  MERGED
+  DECLINED
+}
+
+model Repository {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String?
+  defaultBranch String   @default("main")
+  language      String?
+  createdAt     DateTime @default(now())
+
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pullRequests PullRequest[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("repositories")
+}
+
+model PullRequest {
+  id           String            @id @default(cuid())
+  repositoryId String
+  number       Int
+  title        String
+  description  String?
+  status       PullRequestStatus @default(OPEN)
+  sourceBranch String
+  targetBranch String            @default("main")
+  authorId     String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  repository Repository            @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  author     User                  @relation("PullRequestAuthor", fields: [authorId], references: [id])
+  comments   PullRequestComment[]
+  approvals  PullRequestApproval[]
+
+  @@unique([repositoryId, number])
+  @@index([repositoryId, status])
+  @@map("pull_requests")
+}
+
+model PullRequestComment {
+  id            String   @id @default(cuid())
+  pullRequestId String
+  authorId      String
+  body          String
+  createdAt     DateTime @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  author      User        @relation("PullRequestCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([pullRequestId])
+  @@map("pull_request_comments")
+}
+
+model PullRequestApproval {
+  pullRequestId String
+  userId        String
+  createdAt     DateTime @default(now())
+
+  pullRequest PullRequest @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([pullRequestId, userId])
+  @@index([userId])
+  @@map("pull_request_approvals")
 }

@@ -23,3 +23,4 @@ export * from './servicedesk';
 export * from './discovery';
 export * from './opsgenie';
 export * from './compass';
+export * from './bitbucket';

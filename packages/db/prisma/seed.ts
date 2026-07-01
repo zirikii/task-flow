@@ -18,6 +18,10 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.pullRequestApproval.deleteMany();
+  await prisma.pullRequestComment.deleteMany();
+  await prisma.pullRequest.deleteMany();
+  await prisma.repository.deleteMany();
   await prisma.component.deleteMany();
   await prisma.onCallShift.deleteMany();
   await prisma.onCallSchedule.deleteMany();
@@ -520,6 +524,55 @@ async function main(): Promise<void> {
     await prisma.component.create({ data: { workspaceId: workspace.id, ...c } });
   }
 
+  // -------------------------------------------------------------------------
+  // Bitbucket — repositories & pull requests
+  // -------------------------------------------------------------------------
+  const webRepo = await prisma.repository.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'web-app',
+      description: 'The customer-facing web application.',
+      language: 'TypeScript',
+    },
+  });
+  await prisma.repository.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'api',
+      description: 'Fastify + tRPC backend.',
+      language: 'TypeScript',
+    },
+  });
+  const openPr = await prisma.pullRequest.create({
+    data: {
+      repositoryId: webRepo.id,
+      number: 1,
+      title: 'Add dark mode toggle',
+      description: 'Implements a dark theme using the shared design tokens.',
+      status: 'OPEN',
+      sourceBranch: 'feat/dark-mode',
+      targetBranch: 'main',
+      authorId: grace.id,
+    },
+  });
+  await prisma.pullRequestComment.create({
+    data: { pullRequestId: openPr.id, authorId: ada.id, body: 'Looks great — one nit on the toggle a11y.' },
+  });
+  await prisma.pullRequestApproval.create({
+    data: { pullRequestId: openPr.id, userId: ada.id },
+  });
+  await prisma.pullRequest.create({
+    data: {
+      repositoryId: webRepo.id,
+      number: 2,
+      title: 'Fix flaky session refresh',
+      status: 'MERGED',
+      sourceBranch: 'fix/session',
+      targetBranch: 'main',
+      authorId: ada.id,
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
@@ -528,6 +581,7 @@ async function main(): Promise<void> {
   console.log('✅ Seeded Product Discovery board "Roadmap ideas" with 5 ideas.');
   console.log('✅ Seeded Opsgenie alerts + on-call schedule "Primary".');
   console.log('✅ Seeded Compass catalog with 6 components.');
+  console.log('✅ Seeded Bitbucket repos "web-app" + "api" with pull requests.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }
