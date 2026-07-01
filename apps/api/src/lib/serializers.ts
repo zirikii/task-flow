@@ -27,6 +27,7 @@ import type {
   Alert,
   OnCallShift,
   OnCallSchedule,
+  Component,
   TaskDetail,
   UserRef,
   Workspace,
@@ -461,5 +462,25 @@ export function toOnCallSchedule(schedule: ScheduleRow, now: Date = new Date()):
     name: schedule.name,
     shifts: shifts.map(toOnCallShift),
     currentOnCall: current ? toUserRef(current.user) : null,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Compass
+// ---------------------------------------------------------------------------
+
+type ComponentRow = Prisma.ComponentGetPayload<true>;
+
+export function toComponent(component: ComponentRow): Component {
+  return {
+    id: component.id,
+    workspaceId: component.workspaceId,
+    name: component.name,
+    type: component.type,
+    description: component.description,
+    ownerTeam: component.ownerTeam,
+    tier: component.tier,
+    healthScore: component.healthScore,
+    createdAt: component.createdAt,
   };
 }

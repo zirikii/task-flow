@@ -18,6 +18,7 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.component.deleteMany();
   await prisma.onCallShift.deleteMany();
   await prisma.onCallSchedule.deleteMany();
   await prisma.alert.deleteMany();
@@ -497,6 +498,28 @@ async function main(): Promise<void> {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Compass — component catalog
+  // -------------------------------------------------------------------------
+  const componentSeedList: {
+    name: string;
+    type: 'SERVICE' | 'LIBRARY' | 'APPLICATION' | 'WEBSITE' | 'DATA_PIPELINE';
+    ownerTeam: string;
+    tier: number;
+    healthScore: number;
+    description: string;
+  }[] = [
+    { name: 'checkout-service', type: 'SERVICE', ownerTeam: 'Payments', tier: 1, healthScore: 68, description: 'Handles cart checkout and payment capture.' },
+    { name: 'auth-service', type: 'SERVICE', ownerTeam: 'Platform', tier: 1, healthScore: 91, description: 'Sessions, login and authorization.' },
+    { name: 'ui-kit', type: 'LIBRARY', ownerTeam: 'Design Systems', tier: 3, healthScore: 96, description: 'Shared React component library.' },
+    { name: 'marketing-site', type: 'WEBSITE', ownerTeam: 'Growth', tier: 3, healthScore: 82, description: 'Public marketing website.' },
+    { name: 'events-pipeline', type: 'DATA_PIPELINE', ownerTeam: 'Data', tier: 2, healthScore: 47, description: 'Ingests and processes product analytics events.' },
+    { name: 'mobile-app', type: 'APPLICATION', ownerTeam: 'Mobile', tier: 2, healthScore: 74, description: 'iOS & Android client.' },
+  ];
+  for (const c of componentSeedList) {
+    await prisma.component.create({ data: { workspaceId: workspace.id, ...c } });
+  }
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
@@ -504,6 +527,7 @@ async function main(): Promise<void> {
   console.log('✅ Seeded Service desk "IT Support" with request types + requests.');
   console.log('✅ Seeded Product Discovery board "Roadmap ideas" with 5 ideas.');
   console.log('✅ Seeded Opsgenie alerts + on-call schedule "Primary".');
+  console.log('✅ Seeded Compass catalog with 6 components.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

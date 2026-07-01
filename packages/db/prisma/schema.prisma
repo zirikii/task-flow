@@ -114,6 +114,7 @@ model Workspace {
   ideaBoards      IdeaBoard[]
   alerts          Alert[]
   onCallSchedules OnCallSchedule[]
+  components      Component[]
 
   @@map("workspaces")
 }
@@ -605,4 +606,34 @@ model OnCallShift {
 
   @@index([scheduleId])
   @@map("oncall_shifts")
+}
+
+// ===========================================================================
+// Compass — software component catalog
+// ===========================================================================
+
+enum ComponentType {
+  SERVICE
+  LIBRARY
+  APPLICATION
+  WEBSITE
+  DATA_PIPELINE
+}
+
+model Component {
+  id          String        @id @default(cuid())
+  workspaceId String
+  name        String
+  type        ComponentType @default(SERVICE)
+  description String?
+  ownerTeam   String?
+  tier        Int           @default(3)
+  healthScore Int           @default(80)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("components")
 }
