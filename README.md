@@ -1,13 +1,41 @@
-# TaskFlow
+# TaskFlow — an Atlassian-style product suite
 
-A production-grade, **Linear-lite team task tracker** built as a TypeScript
-monorepo. Teams organise work into **workspaces → projects → tasks** on a
-drag-and-drop kanban board with realtime updates, optimistic UI, comments,
-activity logs, filtering and search.
+A production-grade TypeScript monorepo modelled on the **Atlassian product
+suite**. One backend, one database and one sign-in power **eleven separate
+Next.js apps** — Jira, Confluence, Trello, Service Management, Product
+Discovery, Statuspage, Opsgenie, Compass, Bitbucket, Atlas, and a Home
+launcher — that you switch between with an Atlassian-style 9-dot app switcher.
 
 > Built with pnpm workspaces + Turborepo, Next.js (App Router), Fastify + tRPC,
 > Prisma + PostgreSQL, and a shared Zod schema package as the single source of
 > truth for all types.
+
+---
+
+## The product suite
+
+Every product is its own app under `apps/`, served on its own port. They all
+talk to the shared API (`apps/api`, port 4000) and share one session cookie, so
+signing in once signs you into the whole suite. The shared `@taskflow/app-kit`
+package provides the tRPC client, providers, auth views and the top bar + app
+switcher; `@taskflow/ui` provides the design system.
+
+| Port | App               | Atlassian analog          | What it does |
+| ---- | ----------------- | ------------------------- | ------------ |
+| 3000 | `apps/web`        | **Jira**                  | Kanban issue board with drag-and-drop, comments, realtime |
+| 3001 | `apps/confluence` | **Confluence**            | Spaces + a nested wiki page tree with markdown editing |
+| 3002 | `apps/trello`     | **Trello**                | Boards → lists → cards with drag-and-drop |
+| 3003 | `apps/servicedesk`| **Jira Service Management** | Request portal + agent queue with statuses & replies |
+| 3004 | `apps/discovery`  | **Jira Product Discovery**| Ideas, upvotes and an impact/effort matrix |
+| 3005 | `apps/statuspage` | **Statuspage**            | Component health + incident timeline |
+| 3006 | `apps/opsgenie`   | **Opsgenie**              | Alerts (ack/close) + on-call schedule |
+| 3007 | `apps/compass`    | **Compass**               | Software component catalog + health scores |
+| 3008 | `apps/bitbucket`  | **Bitbucket**             | Repositories + pull requests + reviews |
+| 3009 | `apps/atlas`      | **Atlas**                 | Teams + project status updates |
+| 3010 | `apps/home`       | **Home / Start**          | Landing launcher with the full product grid |
+
+`pnpm dev` runs every app + the API together via Turborepo. To run a subset,
+use `turbo run dev --filter=@taskflow/home --filter=@taskflow/api` (etc.).
 
 ---
 
@@ -29,15 +57,39 @@ activity logs, filtering and search.
 ```
 taskflow/
 ├── apps/
-│   ├── api/     Fastify + tRPC server (auth, CRUD, authorization, WS realtime)
-│   └── web/     Next.js App Router client (kanban UI)
+│   ├── api/         Fastify + tRPC server — one backend for the whole suite
+│   ├── web/         Jira (kanban issue board)
+│   ├── confluence/  Confluence (spaces + wiki pages)
+│   ├── trello/      Trello (boards, lists, cards)
+│   ├── servicedesk/ Jira Service Management (portal + queue)
+│   ├── discovery/   Jira Product Discovery (ideas + voting)
+│   ├── statuspage/  Statuspage (components + incidents)
+│   ├── opsgenie/    Opsgenie (alerts + on-call)
+│   ├── compass/     Compass (component catalog)
+│   ├── bitbucket/   Bitbucket (repos + pull requests)
+│   ├── atlas/       Atlas (teams + project updates)
+│   └── home/        Home launcher
 ├── packages/
-│   ├── types/   Zod schemas + inferred TS types — THE SINGLE SOURCE OF TRUTH
-│   ├── db/      Prisma schema, client singleton, migrations, seed
-│   ├── ui/      Presentation-only component library + design tokens
-│   └── config/  Shared eslint / tsconfig / tailwind presets
+│   ├── types/    Zod schemas + inferred TS types — THE SINGLE SOURCE OF TRUTH
+│   ├── db/       Prisma schema, client singleton, migrations, seed
+│   ├── ui/       Presentation-only component library + design tokens
+│   ├── app-kit/  Shared web runtime: tRPC client, providers, auth, app switcher
+│   └── config/   Shared eslint / tsconfig / tailwind presets
 └── docker-compose.yml   PostgreSQL 16
 ```
+
+**How the suite fits together**
+
+- **One API, many frontends.** Every product app calls the same `apps/api`
+  tRPC server; each product is a router (`apps/api/src/routers/*`) mounted on a
+  single `appRouter`.
+- **Single sign-on for free.** The API sets an httpOnly session cookie on
+  `localhost:4000`; because cookies ignore port, every `localhost:<port>` app
+  sends it, so one login works everywhere. CORS reflects any localhost origin in
+  development.
+- **Shared runtime.** `@taskflow/app-kit` gives each app the tRPC client,
+  React Query providers, `LoginView`/`SignupView`, a `ProductChrome` top bar and
+  the 9-dot `AppSwitcher` — so each product app is mostly product-specific UI.
 
 **Core principles**
 

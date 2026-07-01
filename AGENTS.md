@@ -6,10 +6,22 @@ conventions. Standard scripts live in the root `package.json` (`pnpm dev`,
 
 ## Cursor Cloud specific instructions
 
-This is a pnpm + Turborepo monorepo: `apps/web` (Next.js), `apps/api`
-(Fastify + tRPC), and `packages/*` (`types`, `db`, `ui`, `config`). Internal
-packages export TypeScript source, so there is no separate build step during
-development.
+This is a pnpm + Turborepo monorepo modelled on the Atlassian product suite:
+`apps/api` (Fastify + tRPC — one backend for the whole suite) and eleven
+Next.js apps — `apps/web` (Jira, :3000), `apps/confluence` (:3001),
+`apps/trello` (:3002), `apps/servicedesk` (:3003), `apps/discovery` (:3004),
+`apps/statuspage` (:3005), `apps/opsgenie` (:3006), `apps/compass` (:3007),
+`apps/bitbucket` (:3008), `apps/atlas` (:3009) and `apps/home` (launcher,
+:3010). Shared packages live in `packages/*` (`types`, `db`, `ui`, `config`,
+and `app-kit` — the shared web runtime: tRPC client, providers, auth views and
+the app switcher). Internal packages export TypeScript source, so there is no
+separate build step during development.
+
+All apps share one API and one session cookie (cookies ignore port), so signing
+in once via any app signs you into the whole suite. New products follow a fixed
+recipe: a Prisma model + migration, a `@taskflow/types` zod schema, a router in
+`apps/api/src/routers/*` (+ Vitest coverage), then a thin Next.js app that uses
+`@taskflow/app-kit`.
 
 ### Services & how to run them
 
@@ -22,9 +34,11 @@ development.
   defaults in `.env.example`.
 - **`.env`** is required (gitignored). If missing, `cp .env.example .env`; the
   defaults work as-is against the local Postgres.
-- Run both apps with `pnpm dev` (API on `:4000`, web on `:3000`). Seeded
-  logins: `ada@taskflow.dev` / `password123` and `grace@taskflow.dev` /
-  `password123`.
+- Run the whole suite with `pnpm dev` (API on `:4000`, each app on its own
+ port as listed above). That is a lot of dev servers; to run a subset use
+ `turbo run dev --filter=@taskflow/api --filter=@taskflow/home` (add
+ whichever product apps you need). Seeded logins: `ada@taskflow.dev` /
+ `password123` and `grace@taskflow.dev` / `password123`.
 
 ### Database
 
