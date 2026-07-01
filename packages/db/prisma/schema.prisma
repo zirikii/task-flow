@@ -77,6 +77,9 @@ model User {
   authoredPullRequests PullRequest[]         @relation("PullRequestAuthor")
   pullRequestComments  PullRequestComment[]  @relation("PullRequestCommentAuthor")
   pullRequestApprovals PullRequestApproval[]
+  teamMemberships      TeamMember[]
+  ownedAtlasProjects   AtlasProject[]        @relation("AtlasProjectOwner")
+  atlasProjectUpdates  ProjectUpdate[]       @relation("ProjectUpdateAuthor")
 
   @@map("users")
 }
@@ -119,6 +122,8 @@ model Workspace {
   onCallSchedules OnCallSchedule[]
   components      Component[]
   repositories    Repository[]
+  teams           Team[]
+  atlasProjects   AtlasProject[]
 
   @@map("workspaces")
 }
@@ -717,4 +722,77 @@ model PullRequestApproval {
   @@id([pullRequestId, userId])
   @@index([userId])
   @@map("pull_request_approvals")
+}
+
+// ===========================================================================
+// Atlas — teams, projects & status updates
+// ===========================================================================
+
+enum AtlasProjectStatus {
+  ON_TRACK
+  AT_RISK
+  OFF_TRACK
+  PAUSED
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  mission     String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  projects  AtlasProject[]
+
+  @@index([workspaceId])
+  @@map("teams")
+}
+
+model TeamMember {
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model AtlasProject {
+  id          String             @id @default(cuid())
+  workspaceId String
+  teamId      String?
+  name        String
+  status      AtlasProjectStatus @default(ON_TRACK)
+  ownerId     String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  owner     User            @relation("AtlasProjectOwner", fields: [ownerId], references: [id])
+  updates   ProjectUpdate[]
+
+  @@index([workspaceId])
+  @@map("atlas_projects")
+}
+
+model ProjectUpdate {
+  id             String             @id @default(cuid())
+  atlasProjectId String
+  body           String
+  status         AtlasProjectStatus
+  authorId       String
+  createdAt      DateTime           @default(now())
+
+  project AtlasProject @relation(fields: [atlasProjectId], references: [id], onDelete: Cascade)
+  author  User         @relation("ProjectUpdateAuthor", fields: [authorId], references: [id])
+
+  @@index([atlasProjectId])
+  @@map("project_updates")
 }

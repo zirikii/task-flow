@@ -32,6 +32,10 @@ import type {
   PullRequest,
   PullRequestComment,
   PullRequestDetail,
+  Team,
+  AtlasProject,
+  AtlasProjectDetail,
+  ProjectUpdate,
   TaskDetail,
   UserRef,
   Workspace,
@@ -568,3 +572,60 @@ export function toPullRequestDetail(
     createdAt: pr.createdAt,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Atlas
+// ---------------------------------------------------------------------------
+
+type TeamRow = Prisma.TeamGetPayload<{ include: { members: { include: { user: true } } } }>;
+const atlasProjectInclude = { owner: true, team: true } satisfies Prisma.AtlasProjectInclude;
+type AtlasProjectRow = Prisma.AtlasProjectGetPayload<{ include: typeof atlasProjectInclude }>;
+type ProjectUpdateRow = Prisma.ProjectUpdateGetPayload<{ include: { author: true } }>;
+type AtlasProjectDetailRow = Prisma.AtlasProjectGetPayload<{
+  include: { owner: true; team: true; updates: { include: { author: true } } };
+}>;
+
+export function toTeam(team: TeamRow): Team {
+  return {
+    id: team.id,
+    workspaceId: team.workspaceId,
+    name: team.name,
+    mission: team.mission,
+    members: team.members.map((member) => toUserRef(member.user)),
+  };
+}
+
+export function toAtlasProject(project: AtlasProjectRow): AtlasProject {
+  return {
+    id: project.id,
+    workspaceId: project.workspaceId,
+    name: project.name,
+    status: project.status,
+    owner: toUserRef(project.owner),
+    teamId: project.teamId,
+    teamName: project.team?.name ?? null,
+    createdAt: project.createdAt,
+  };
+}
+
+export function toProjectUpdate(update: ProjectUpdateRow): ProjectUpdate {
+  return {
+    id: update.id,
+    atlasProjectId: update.atlasProjectId,
+    body: update.body,
+    status: update.status,
+    author: toUserRef(update.author),
+    createdAt: update.createdAt,
+  };
+}
+
+export function toAtlasProjectDetail(project: AtlasProjectDetailRow): AtlasProjectDetail {
+  return {
+    ...toAtlasProject(project),
+    updates: [...project.updates]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(toProjectUpdate),
+  };
+}
+
+export { atlasProjectInclude };

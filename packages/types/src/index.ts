@@ -24,3 +24,4 @@ export * from './discovery';
 export * from './opsgenie';
 export * from './compass';
 export * from './bitbucket';
+export * from './atlas';

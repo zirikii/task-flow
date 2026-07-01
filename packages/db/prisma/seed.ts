@@ -18,6 +18,10 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.projectUpdate.deleteMany();
+  await prisma.atlasProject.deleteMany();
+  await prisma.teamMember.deleteMany();
+  await prisma.team.deleteMany();
   await prisma.pullRequestApproval.deleteMany();
   await prisma.pullRequestComment.deleteMany();
   await prisma.pullRequest.deleteMany();
@@ -573,6 +577,62 @@ async function main(): Promise<void> {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Atlas — teams + projects with status updates
+  // -------------------------------------------------------------------------
+  const platformTeam = await prisma.team.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Platform',
+      mission: 'Keep the platform fast, reliable and secure.',
+      members: { create: [{ userId: ada.id }, { userId: grace.id }] },
+    },
+  });
+  const growthTeam = await prisma.team.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Growth',
+      mission: 'Help more teams discover and adopt the product.',
+      members: { create: [{ userId: grace.id }] },
+    },
+  });
+
+  const activation = await prisma.atlasProject.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Q3 Onboarding revamp',
+      teamId: growthTeam.id,
+      status: 'AT_RISK',
+      ownerId: grace.id,
+    },
+  });
+  await prisma.projectUpdate.create({
+    data: {
+      atlasProjectId: activation.id,
+      status: 'ON_TRACK',
+      authorId: grace.id,
+      body: 'Kicked off — designs are in review.',
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.projectUpdate.create({
+    data: {
+      atlasProjectId: activation.id,
+      status: 'AT_RISK',
+      authorId: grace.id,
+      body: 'Design review slipped a week; pulling in another engineer.',
+    },
+  });
+  await prisma.atlasProject.create({
+    data: {
+      workspaceId: workspace.id,
+      name: 'Realtime infrastructure',
+      teamId: platformTeam.id,
+      status: 'ON_TRACK',
+      ownerId: ada.id,
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
@@ -582,6 +642,7 @@ async function main(): Promise<void> {
   console.log('✅ Seeded Opsgenie alerts + on-call schedule "Primary".');
   console.log('✅ Seeded Compass catalog with 6 components.');
   console.log('✅ Seeded Bitbucket repos "web-app" + "api" with pull requests.');
+  console.log('✅ Seeded Atlas teams "Platform"/"Growth" + projects with updates.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }
