@@ -8,6 +8,7 @@ import { commentRouter } from './routers/comment';
 import { confluenceRouter } from './routers/confluence';
 import { trelloRouter } from './routers/trello';
 import { statuspageRouter } from './routers/statuspage';
+import { servicedeskRouter } from './routers/servicedesk';
 
 export const appRouter = router({
   auth: authRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   confluence: confluenceRouter,
   trello: trelloRouter,
   statuspage: statuspageRouter,
+  servicedesk: servicedeskRouter,
 });
 
 export type AppRouter = typeof appRouter;

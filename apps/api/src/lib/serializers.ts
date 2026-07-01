@@ -17,6 +17,11 @@ import type {
   StatusPage,
   StatusPageDetail,
   IncidentUpdate,
+  ServiceDesk,
+  RequestType,
+  RequestComment,
+  ServiceRequest,
+  ServiceRequestDetail,
   TaskDetail,
   UserRef,
   Workspace,
@@ -300,3 +305,73 @@ export function toStatusPageDetail(page: StatusPageDetailRow): StatusPageDetail 
       .map(toStatusIncident),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Jira Service Management
+// ---------------------------------------------------------------------------
+
+type ServiceDeskRow = Prisma.ServiceDeskGetPayload<true>;
+type RequestTypeRow = Prisma.RequestTypeGetPayload<true>;
+type RequestCommentRow = Prisma.RequestCommentGetPayload<{ include: { author: true } }>;
+const serviceRequestInclude = {
+  requestType: true,
+  reporter: true,
+  assignee: true,
+} satisfies Prisma.ServiceRequestInclude;
+type ServiceRequestRow = Prisma.ServiceRequestGetPayload<{ include: typeof serviceRequestInclude }>;
+type ServiceRequestDetailRow = Prisma.ServiceRequestGetPayload<{
+  include: {
+    requestType: true;
+    reporter: true;
+    assignee: true;
+    comments: { include: { author: true } };
+  };
+}>;
+
+export function toServiceDesk(desk: ServiceDeskRow): ServiceDesk {
+  return { id: desk.id, workspaceId: desk.workspaceId, name: desk.name, createdAt: desk.createdAt };
+}
+
+export function toRequestType(type: RequestTypeRow): RequestType {
+  return {
+    id: type.id,
+    serviceDeskId: type.serviceDeskId,
+    name: type.name,
+    description: type.description,
+  };
+}
+
+export function toRequestComment(comment: RequestCommentRow): RequestComment {
+  return {
+    id: comment.id,
+    requestId: comment.requestId,
+    body: comment.body,
+    author: toUserRef(comment.author),
+    createdAt: comment.createdAt,
+  };
+}
+
+export function toServiceRequest(request: ServiceRequestRow): ServiceRequest {
+  return {
+    id: request.id,
+    serviceDeskId: request.serviceDeskId,
+    requestType: toRequestType(request.requestType),
+    summary: request.summary,
+    description: request.description,
+    status: request.status,
+    priority: request.priority,
+    reporter: toUserRef(request.reporter),
+    assignee: request.assignee ? toUserRef(request.assignee) : null,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
+}
+
+export function toServiceRequestDetail(request: ServiceRequestDetailRow): ServiceRequestDetail {
+  return {
+    ...toServiceRequest(request),
+    comments: request.comments.map(toRequestComment),
+  };
+}
+
+export { serviceRequestInclude };

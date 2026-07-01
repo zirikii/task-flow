@@ -18,6 +18,10 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.requestComment.deleteMany();
+  await prisma.serviceRequest.deleteMany();
+  await prisma.requestType.deleteMany();
+  await prisma.serviceDesk.deleteMany();
   await prisma.incidentUpdate.deleteMany();
   await prisma.statusIncident.deleteMany();
   await prisma.statusComponent.deleteMany();
@@ -350,10 +354,59 @@ async function main(): Promise<void> {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Jira Service Management — a desk with request types & requests
+  // -------------------------------------------------------------------------
+  const desk = await prisma.serviceDesk.create({
+    data: { workspaceId: workspace.id, name: 'IT Support' },
+  });
+  const itHelp = await prisma.requestType.create({
+    data: { serviceDeskId: desk.id, name: 'Get IT help', description: 'Report a problem or ask a question.' },
+  });
+  const accessType = await prisma.requestType.create({
+    data: { serviceDeskId: desk.id, name: 'Request access', description: 'Request access to a system or tool.' },
+  });
+  const req1 = await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: itHelp.id,
+      summary: 'Laptop will not boot',
+      description: 'Black screen on startup after the latest update.',
+      status: 'IN_PROGRESS',
+      priority: 'HIGH',
+      reporterId: grace.id,
+      assigneeId: ada.id,
+    },
+  });
+  await prisma.requestComment.create({
+    data: { requestId: req1.id, authorId: ada.id, body: 'Thanks — can you try holding the power button for 10s?' },
+  });
+  await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: accessType.id,
+      summary: 'Access to the analytics dashboard',
+      status: 'OPEN',
+      priority: 'MEDIUM',
+      reporterId: grace.id,
+    },
+  });
+  await prisma.serviceRequest.create({
+    data: {
+      serviceDeskId: desk.id,
+      requestTypeId: itHelp.id,
+      summary: 'VPN keeps disconnecting',
+      status: 'WAITING',
+      priority: 'LOW',
+      reporterId: ada.id,
+    },
+  });
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
   console.log('✅ Seeded Statuspage "Acme Status" with components + an incident.');
+  console.log('✅ Seeded Service desk "IT Support" with request types + requests.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

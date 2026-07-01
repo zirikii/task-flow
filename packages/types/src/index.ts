@@ -19,3 +19,4 @@ export * from './events';
 export * from './confluence';
 export * from './trello';
 export * from './statuspage';
+export * from './servicedesk';
