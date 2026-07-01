@@ -22,6 +22,8 @@ import type {
   RequestComment,
   ServiceRequest,
   ServiceRequestDetail,
+  IdeaBoard,
+  Idea,
   TaskDetail,
   UserRef,
   Workspace,
@@ -375,3 +377,39 @@ export function toServiceRequestDetail(request: ServiceRequestDetailRow): Servic
 }
 
 export { serviceRequestInclude };
+
+// ---------------------------------------------------------------------------
+// Jira Product Discovery
+// ---------------------------------------------------------------------------
+
+type IdeaBoardRow = Prisma.IdeaBoardGetPayload<true>;
+export const ideaInclude = {
+  creator: true,
+  votes: { select: { userId: true } },
+} satisfies Prisma.IdeaInclude;
+type IdeaRow = Prisma.IdeaGetPayload<{ include: typeof ideaInclude }>;
+
+export function toIdeaBoard(board: IdeaBoardRow): IdeaBoard {
+  return {
+    id: board.id,
+    workspaceId: board.workspaceId,
+    name: board.name,
+    createdAt: board.createdAt,
+  };
+}
+
+export function toIdea(idea: IdeaRow, currentUserId: string): Idea {
+  return {
+    id: idea.id,
+    boardId: idea.boardId,
+    title: idea.title,
+    description: idea.description,
+    impact: idea.impact,
+    effort: idea.effort,
+    status: idea.status,
+    creator: toUserRef(idea.creator),
+    votes: idea.votes.length,
+    hasVoted: idea.votes.some((vote) => vote.userId === currentUserId),
+    createdAt: idea.createdAt,
+  };
+}

@@ -18,6 +18,9 @@ async function main(): Promise<void> {
 
   // Clean slate (order respects foreign keys; most are ON DELETE CASCADE).
   // Suite products first (they reference users/workspaces).
+  await prisma.ideaVote.deleteMany();
+  await prisma.idea.deleteMany();
+  await prisma.ideaBoard.deleteMany();
   await prisma.requestComment.deleteMany();
   await prisma.serviceRequest.deleteMany();
   await prisma.requestType.deleteMany();
@@ -402,11 +405,49 @@ async function main(): Promise<void> {
     },
   });
 
+  // -------------------------------------------------------------------------
+  // Jira Product Discovery — an idea board with votes
+  // -------------------------------------------------------------------------
+  const ideaBoard = await prisma.ideaBoard.create({
+    data: { workspaceId: workspace.id, name: 'Roadmap ideas' },
+  });
+  const ideaSeed: {
+    title: string;
+    description: string;
+    impact: number;
+    effort: number;
+    status: 'NEW' | 'UNDER_REVIEW' | 'PLANNED' | 'SHIPPED';
+    voters: string[];
+  }[] = [
+    { title: 'Dark mode', description: 'A dark theme across all products.', impact: 4, effort: 2, status: 'PLANNED', voters: [ada.id, grace.id] },
+    { title: 'Mobile app', description: 'Native iOS + Android apps.', impact: 5, effort: 5, status: 'UNDER_REVIEW', voters: [grace.id] },
+    { title: 'Slack integration', description: 'Notify channels on key events.', impact: 3, effort: 2, status: 'NEW', voters: [ada.id] },
+    { title: 'CSV export', description: 'Export any list to CSV.', impact: 2, effort: 1, status: 'SHIPPED', voters: [] },
+    { title: 'AI summaries', description: 'Summarize long threads and pages.', impact: 5, effort: 4, status: 'NEW', voters: [ada.id, grace.id] },
+  ];
+  for (const seed of ideaSeed) {
+    const idea = await prisma.idea.create({
+      data: {
+        boardId: ideaBoard.id,
+        title: seed.title,
+        description: seed.description,
+        impact: seed.impact,
+        effort: seed.effort,
+        status: seed.status,
+        creatorId: ada.id,
+      },
+    });
+    for (const userId of seed.voters) {
+      await prisma.ideaVote.create({ data: { ideaId: idea.id, userId } });
+    }
+  }
+
   console.log(`✅ Seeded ${seedTasks.length} tasks across 4 columns.`);
   console.log('✅ Seeded Confluence space "Engineering" with a page tree.');
   console.log('✅ Seeded Trello board "Product Roadmap" with 4 lists.');
   console.log('✅ Seeded Statuspage "Acme Status" with components + an incident.');
   console.log('✅ Seeded Service desk "IT Support" with request types + requests.');
+  console.log('✅ Seeded Product Discovery board "Roadmap ideas" with 5 ideas.');
   console.log(`   Demo login: ada@taskflow.dev / ${DEMO_PASSWORD}`);
   console.log(`   Demo login: grace@taskflow.dev / ${DEMO_PASSWORD}`);
 }

@@ -70,6 +70,8 @@ model User {
   reportedRequests ServiceRequest[] @relation("RequestReporter")
   assignedRequests ServiceRequest[] @relation("RequestAssignee")
   requestComments  RequestComment[] @relation("RequestCommentAuthor")
+  createdIdeas     Idea[]           @relation("IdeaCreator")
+  ideaVotes        IdeaVote[]
 
   @@map("users")
 }
@@ -107,6 +109,7 @@ model Workspace {
   trelloBoards TrelloBoard[]
   statusPages  StatusPage[]
   serviceDesks ServiceDesk[]
+  ideaBoards   IdeaBoard[]
 
   @@map("workspaces")
 }
@@ -478,4 +481,61 @@ model RequestComment {
 
   @@index([requestId])
   @@map("request_comments")
+}
+
+// ===========================================================================
+// Jira Product Discovery — idea boards, ideas & votes
+// ===========================================================================
+
+enum IdeaStatus {
+  NEW
+  UNDER_REVIEW
+  PLANNED
+  SHIPPED
+}
+
+model IdeaBoard {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ideas     Idea[]
+
+  @@index([workspaceId])
+  @@map("idea_boards")
+}
+
+model Idea {
+  id          String     @id @default(cuid())
+  boardId     String
+  title       String
+  description String?
+  impact      Int        @default(3)
+  effort      Int        @default(3)
+  status      IdeaStatus @default(NEW)
+  creatorId   String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  board   IdeaBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  creator User       @relation("IdeaCreator", fields: [creatorId], references: [id])
+  votes   IdeaVote[]
+
+  @@index([boardId])
+  @@map("ideas")
+}
+
+model IdeaVote {
+  ideaId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  idea Idea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([ideaId, userId])
+  @@index([userId])
+  @@map("idea_votes")
 }
