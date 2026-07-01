@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { Avatar, Button } from '@taskflow/ui';
+import { AppSwitcher } from '@taskflow/app-kit';
 import { trpc } from '../lib/trpc';
 import { Spinner } from './Spinner';
 import { CreateProjectDialog } from './CreateProjectDialog';
@@ -41,6 +42,19 @@ export function AppShell({ workspaceId, children }: { workspaceId: string; child
   return (
     <div className="flex min-h-screen">
       <aside className="flex w-64 shrink-0 flex-col border-r border-border bg-card">
+        <div className="flex items-center gap-2 border-b border-border p-3">
+          <AppSwitcher currentId="jira" />
+          <span className="flex items-center gap-2 text-lg font-semibold">
+            <span
+              className="grid h-7 w-7 place-items-center rounded-md text-xs font-bold text-white"
+              style={{ backgroundColor: '#2684ff' }}
+            >
+              J
+            </span>
+            Jira
+          </span>
+        </div>
+
         <div className="border-b border-border p-3">
           <label className="sr-only" htmlFor="workspace-switcher">
             Switch workspace

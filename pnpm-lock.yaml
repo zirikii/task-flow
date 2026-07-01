@@ -102,6 +102,9 @@ importers:
       '@taskflow/api':
         specifier: workspace:*
         version: link:../api
+      '@taskflow/app-kit':
+        specifier: workspace:*
+        version: link:../../packages/app-kit
       '@taskflow/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -166,6 +169,58 @@ importers:
       tailwindcss:
         specifier: 3.4.19
         version: 3.4.19(tsx@4.22.4)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/app-kit:
+    dependencies:
+      '@tanstack/react-query':
+        specifier: 5.101.2
+        version: 5.101.2(react@19.2.7)
+      '@taskflow/api':
+        specifier: workspace:*
+        version: link:../../apps/api
+      '@taskflow/types':
+        specifier: workspace:*
+        version: link:../types
+      '@taskflow/ui':
+        specifier: workspace:*
+        version: link:../ui
+      '@trpc/client':
+        specifier: 11.18.0
+        version: 11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/react-query':
+        specifier: 11.18.0
+        version: 11.18.0(@tanstack/react-query@5.101.2(react@19.2.7))(@trpc/client@11.18.0(@trpc/server@11.18.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.18.0(typescript@5.9.3))(react@19.2.7)(typescript@5.9.3)
+      '@trpc/server':
+        specifier: 11.18.0
+        version: 11.18.0(typescript@5.9.3)
+      superjson:
+        specifier: 2.2.6
+        version: 2.2.6
+    devDependencies:
+      '@taskflow/config':
+        specifier: workspace:*
+        version: link:../config
+      '@types/react':
+        specifier: ^19
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.3(@types/react@19.2.17)
+      eslint:
+        specifier: 9.39.4
+        version: 9.39.4(jiti@2.7.0)
+      next:
+        specifier: 15.5.19
+        version: 15.5.19(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: 19.2.7
+        version: 19.2.7
+      react-dom:
+        specifier: 19.2.7
+        version: 19.2.7(react@19.2.7)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
